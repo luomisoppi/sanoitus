@@ -1,0 +1,98 @@
+wrapper{
+  gradleVersion = "6.2"
+}
+
+configure(allprojects) {
+  version = "0.1.0-SNAPSHOT"
+
+  repositories {
+    mavenCentral()
+  }
+}
+
+configure(subprojects) {
+  apply plugin: 'java-library'
+  apply plugin: 'scala'
+  apply plugin: "com.github.maiflai.scalatest"
+  apply plugin: 'maven-publish'
+
+  jar {
+    archiveBaseName = "sanoitus-${project.name}_${gradle.scalaVersion}"
+  }
+
+  test {
+    maxHeapSize = "2048m"
+    jvmArgs '-server'
+  }
+
+  def scalaOptions = [
+      "-feature",
+      "-encoding", "UTF-8",
+      "-unchecked",
+      "-deprecation",
+      "-Xlint",
+      "-language:existentials",
+      "-language:implicitConversions",
+      "-language:higherKinds",
+      "-Ywarn-unused",
+      "-Ywarn-numeric-widen"
+  ]
+
+  compileScala {
+    scalaCompileOptions.additionalParameters = scalaOptions
+  }
+
+  compileTestScala {
+    scalaCompileOptions.additionalParameters = scalaOptions
+  }  
+
+  task sourceJar(type: Jar) {
+    from sourceSets.main.scala
+    archiveBaseName = tasks.jar.archiveBaseName
+    classifier "sources"
+  }
+
+  task scalaDoc(type: org.gradle.api.tasks.scala.ScalaDoc) {
+    title = "sanoitus-${project.name}"
+    scalaDocOptions.additionalParameters = [
+      "-feature",
+      "-language:existentials",
+      "-language:implicitConversions",
+      "-language:higherKinds"
+    ]
+  }
+
+  task scalaDocJar(type: Jar, dependsOn: scalaDoc) {
+    from scalaDoc.destinationDir
+    archiveBaseName = tasks.jar.archiveBaseName
+    classifier "javadoc"
+  }
+
+  publishing { 
+    publications {
+      impl(MavenPublication) {
+        groupId 'org.sanoitus'
+        artifactId "sanoitus-${project.name}_${gradle.scalaVersion}"
+        from components.java
+        version version
+        
+        artifact tasks.sourceJar
+        artifact tasks.scalaDocJar
+      }
+    }
+
+    repositories {
+      maven {
+        url findProperty("sanoitus.repository.url") ?: "${rootProject.buildDir}/repo"
+      }
+    }
+  }
+
+  publish.dependsOn test
+}
+
+task build
+build.dependsOn subprojects.test
+
+task publish
+publish.dependsOn subprojects.publish

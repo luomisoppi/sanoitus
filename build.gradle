@@ -1,0 +1,16 @@
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath 'com.github.maiflai:gradle-scalatest:0.26'
+  }
+}
+
+apply from: 'common.gradle'
+
+configure(subprojects) {
+  dependencies {
+    api 'org.scala-lang:scala-library:2.13.1'
+  }
+}

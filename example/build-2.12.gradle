@@ -1,0 +1,11 @@
+apply plugin: 'scala'
+
+repositories {
+  mavenLocal()
+  mavenCentral()
+}
+
+dependencies {
+  implementation 'org.sanoitus:sanoitus-parallel-core_2.12:0.1.0-SNAPSHOT',
+                 'org.sanoitus:sanoitus-stream-core_2.12:0.1.0-SNAPSHOT'
+}

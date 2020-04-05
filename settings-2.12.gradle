@@ -1,0 +1,14 @@
+include 'core',
+'core-test',
+'test',
+'util',
+'parallel-dsl',
+'parallel-core',
+'parallel-test',
+'stream-dsl',
+'stream-core',
+'stream-test'
+
+rootProject.buildFileName = 'build-2.12.gradle'
+gradle.ext.scalaVersion='2.12'
+gradle.ext.scalaMinorVersion='10'

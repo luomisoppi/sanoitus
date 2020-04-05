@@ -1,0 +1,5 @@
+dependencies {
+  api project(':parallel-dsl')
+
+  testImplementation project(':parallel-test')
+}

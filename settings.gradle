@@ -1,0 +1,13 @@
+include 'core',
+'core-test',
+'test',
+'util',
+'parallel-dsl',
+'parallel-core',
+'parallel-test',
+'stream-dsl',
+'stream-core',
+'stream-test'
+
+gradle.ext.scalaVersion='2.13'
+gradle.ext.scalaMinorVersion='1'

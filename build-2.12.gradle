@@ -1,0 +1,66 @@
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath 'com.github.maiflai:gradle-scalatest:0.26'
+  }
+}
+
+def overrideFrom(overrideSourceSet) { 
+  { fileElement ->
+    def path = fileElement.getRelativePath().toString()
+    def fullPath = fileElement.getFile().getAbsolutePath()
+
+    def overrideDirectories = 
+      overrideSourceSet.scala.srcDirs
+        .findAll({ it.exists() })
+        .collect({ it.getAbsolutePath() })
+
+    def overrideFiles = overrideSourceSet.getAllSource().collect { 
+      def file = it.getAbsolutePath()
+      def prefix = overrideDirectories.find { file.startsWith(it) }
+      file.substring(prefix.length() + 1)
+    }
+
+    def isOverrideFile = overrideDirectories.any { fullPath.startsWith(it) }
+
+    if (isOverrideFile) {
+      false
+    } else {
+      overrideFiles.any { it.equals(path) }
+    }
+  }
+}
+  
+
+apply from: 'common.gradle'
+
+configure(subprojects) {
+
+  buildDir = 'build-2.12'
+
+  clean {
+    delete 'build-2.12'
+  }
+
+  sourceSets { 
+    
+    compat {
+      scala {
+        srcDir 'src/main/scala-2.12'
+      }
+    }
+
+    main { 
+      scala { 
+        srcDirs compat.scala.srcDirs
+        exclude overrideFrom(sourceSets.compat)
+      } 
+    } 
+  } 
+
+  dependencies {
+    api 'org.scala-lang:scala-library:2.12.10'
+  }
+}
