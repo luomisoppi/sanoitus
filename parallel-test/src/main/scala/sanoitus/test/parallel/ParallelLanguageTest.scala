@@ -45,7 +45,7 @@ trait ParallelLanguageTest extends AnyFunSuite {
       for {
         a <- ReturnValue(value)
         b <- unit(value)
-        c <- effect { _ => Some(value) }
+        c <- effect[Int] { _ => Some(value) }
       } yield a + b + c
 
     val forkingProgram =
@@ -85,10 +85,7 @@ trait ParallelLanguageTest extends AnyFunSuite {
     val err = new IllegalStateException("failure")
     val failingProgram =
       for {
-        _ <- effect { _ =>
-          throw err
-          Some("never here")
-        }
+        _ <- effect[String] { _ => throw err }
       } yield "never returned"
 
     val main =
@@ -186,9 +183,7 @@ trait ParallelLanguageTest extends AnyFunSuite {
       for {
         ab <- resources(resource)(closer)
         _ <- Fork(program(1), ab(0))
-        _ <- effect { _ =>
-          None: Option[Unit]
-        }
+        _ <- effect[Unit] { _ => None }
       } yield ()
 
     es.executeAsync(main, ((_: Any) => ()))
@@ -218,9 +213,7 @@ trait ParallelLanguageTest extends AnyFunSuite {
 
     def fulfiller(promise: WritablePromise[Int]): Program[Unit] =
       for {
-        _ <- effect { _ =>
-          Some(Thread.sleep(1000))
-        }
+        _ <- effect[Unit] { _ => Some(Thread.sleep(1000)) }
         _ <- FulfillPromise(promise, Right(15))
       } yield ()
 
@@ -234,5 +227,4 @@ trait ParallelLanguageTest extends AnyFunSuite {
     val result = es.execute(program)
     assert(result.value == Right(15))
   }
-
 }

@@ -6,7 +6,7 @@ import sanoitus.util._
 import ParallelInterpreter._
 
 trait Promise[+A] {
-  def addWaiter(execution: Execution[_]): Option[Either[Throwable, A]]
+  def addWaiter(s: Suspended[_ >: A]): Option[Either[Throwable, A]]
   def flatMap[B](f: A => Promise[B]): Promise[B]
 }
 
@@ -17,13 +17,13 @@ trait WritablePromise[A] extends Promise[A] {
 class UnitPromise[A](initial: Option[Either[Throwable, A]] = None) extends WritablePromise[A] {
 
   var result: Option[Either[Throwable, A]] = initial
-  var waiters: List[Execution[_]] = List()
+  var waiters: List[Suspended[_ >: A]] = List()
 
-  override def addWaiter(execution: Execution[_]): Option[Either[Throwable, A]] =
+  override def addWaiter(s: Suspended[_ >: A]): Option[Either[Throwable, A]] =
     this.synchronized {
       result match {
         case None => {
-          waiters = execution :: waiters
+          waiters = s :: waiters
           None
         }
         case res @ Some(_) => res
@@ -48,29 +48,23 @@ case class FlatmapPromise[A, B](w: WritablePromise[A], kl: DependentQueue[Promis
 
   def awaitLoop[A1, B1](a: A1, queue: DependentDeque[PromiseKleisli, A1, B1]): Program[B1] =
     queue.take match {
-      case Left(item) =>
-        for {
-          a <- Await(item.head(a))
-          b <- awaitLoop(a, item.tail)
-        } yield b
-      case Right(f) => Await(f(a))
+      case Left(item) => Await(item.head(a)).flatMap(a => awaitLoop(a, item.tail))
+      case Right(f)   => Await(f(a))
     }
 
-  override def addWaiter(execution: Execution[_]): Option[Either[Throwable, B]] = {
+  override def addWaiter(suspended: Suspended[_ >: B]): Option[Either[Throwable, B]] = {
     val prog =
       for {
         a <- Await(w)
         b <- awaitLoop(a, kl.dequeue)
-        _ <- effect { _ =>
-          Some(execution.continueWith(Right(b)))
-        }
-      } yield b
+        _ <- effect[Unit] { _ => Some(suspended.proceed(b)) }
+      } yield ()
 
-    def callback(result: Result[_]): Unit = result.value match {
-      case Left(err) => execution.continueWith(Left(err))
+    def callback(result: suspended.es.Res[_]): Unit = result.value match {
+      case Left(err) => suspended.continueWith(Left(err))
       case _         => ()
     }
-    execution.es.executeAsync(prog, callback)
+    suspended.es.executeAsync(prog, callback)
     None
   }
 

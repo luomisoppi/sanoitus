@@ -10,3 +10,4 @@ bin
 .DS_Store
 .bloop
 .metals
+.dotty-ide-disabled

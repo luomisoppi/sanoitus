@@ -4,8 +4,9 @@ import java.util.concurrent.Semaphore
 
 trait ExecutionService { self =>
 
+  type Meta
   type Exec[A] <: Execution[A]
-  type Res[+A] = ExecutionResult[A, Exec[_]#Meta]
+  type Res[+A] = ExecutionResult[A, Meta]
 
   protected val anomalies: AnomalySink
 
@@ -81,7 +82,7 @@ trait ExecutionService { self =>
       try {
         val program =
           for {
-            _ <- directive[Unit] { (exec: FreeExec) => Some((exec.mapResources(_ + resource), Return(()))) }
+            _ <- mapResources(_ + resource)
             _ <- close(resource)
           } yield ()
 

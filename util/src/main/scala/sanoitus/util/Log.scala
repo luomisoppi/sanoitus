@@ -17,8 +17,18 @@ case class ReturnEntry(value: Any, thread: String, time: Long, depth: Int, maps:
   def addMap(mapped: Any) = ReturnEntry(value, thread, time, depth, mapped :: maps)
 }
 
-case class DirectiveEntry(thread: String, time: Long, depth: Int) extends LogEntry {
+case class EffectEntry(thread: String, time: Long, depth: Int) extends LogEntry {
   def addMap(mapped: Any) = ???
+}
+
+case class MapResourcesEntry(pre: Set[Resource[_]],
+                             post: Set[Resource[_]],
+                             thread: String,
+                             time: Long,
+                             depth: Int,
+                             maps: List[Any] = List())
+    extends LogEntry {
+  def addMap(mapped: Any) = MapResourcesEntry(pre, post, thread, time, depth, mapped :: maps)
 }
 
 case class Log(entries: List[LogEntry]) {
@@ -37,7 +47,6 @@ case class Log(entries: List[LogEntry]) {
           val (content, wasEffect) = entry match {
             case entry: CallEntry =>
               (entry.op.toString, false)
-            case _: DirectiveEntry => ("[effect]", true)
             case entry: ReturnEntry =>
               ("=> " + entry.maps.reverse
                  .foldLeft(List[Any](entry.value))((acc, a) =>
@@ -47,6 +56,10 @@ case class Log(entries: List[LogEntry]) {
                  .reverse
                  .mkString(" => "),
                false)
+            case _: EffectEntry => ("[effect]", true)
+            case entry: MapResourcesEntry => {
+              ("MapResources: " + entry.pre.toString + " => " + entry.post.toString, false)
+            }
           }
           (s"${acc._1}\n$prefix $content", wasEffect)
         }

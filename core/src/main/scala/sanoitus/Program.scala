@@ -4,9 +4,13 @@ private[sanoitus] trait UnitProgram[+A] extends Program[A]
 
 private[sanoitus] case class Return[+A](value: A, map: Boolean = false) extends UnitProgram[A]
 
-private[sanoitus] case class Interpret[A](op: Op[A]) extends UnitProgram[A]
+private[sanoitus] case class Interpret[+A](op: Op[A]) extends UnitProgram[A]
 
-private[sanoitus] case class Directive[+A, B, E[_]](f: E[B] => Option[(E[B], Program[A])]) extends UnitProgram[A]
+private[sanoitus] case class Effect[+A, S <: A](s: Suspended[S] => Option[A]) extends UnitProgram[A]
+
+private[sanoitus] case class MapResources(f: Set[Resource[_]] => Set[Resource[_]]) extends UnitProgram[Unit]
+
+private[sanoitus] case class PeekResources() extends UnitProgram[Set[Resource[_]]]
 
 private[sanoitus] case class Flatmap[A, +B](h: Program[A], f: A => Program[B]) extends Program[B]
 

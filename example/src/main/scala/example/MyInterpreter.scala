@@ -11,14 +11,14 @@ object MyInterpreter extends Interpreter with MyLanguage {
   override def apply[A](op: Operation[A]): Program[A] =
     op match {
       case WriteValue(key, value) => {
-        effect { _ =>
+        effect[Unit] { _ =>
           store.updateAndGet(_ + ((key, value)))
           Some(())
         }
       }
 
       case ReadValue(key) => {
-        effect { _ => Some(store.get().get(key)) }
+        effect[A] { _ => Some(store.get().get(key)) }
       }
     }
 

@@ -1,7 +1,5 @@
 package sanoitus.stream.core
 
-import scala.collection.immutable.Queue
-
 import sanoitus._
 import sanoitus.stream._
 import sanoitus.util._
@@ -42,8 +40,6 @@ object StreamInterpreter extends Interpreter with StreamLanguage {
   case class DropStream[A](stream: Stream[A], count: Int) extends Stream[A]
 
   case class DropWhileStream[A](stream: Stream[A], f: A => Boolean) extends Stream[A]
-
-  case class DropRightStream[A](stream: Stream[A], count: Int, buffer: Queue[A]) extends Stream[A]
 
   case class ThroughStream[A, +B](stream: Stream[A], f: A => Program[B]) extends Stream[B]
 
@@ -144,19 +140,6 @@ object StreamInterpreter extends Interpreter with StreamLanguage {
             ReadStream(stream).flatMap {
               case Some(StreamData(value, next)) if f(value) => ReadStream(DropWhileStream(next, f))
               case value                                     => unit(value)
-            }
-
-          case DropRightStream(stream, count, buffer) =>
-            if (count <= 0) {
-              ReadStream(stream)
-            } else if (buffer.length < count + 1) {
-              ReadStream(stream).flatMap {
-                case None                          => unit(None)
-                case Some(StreamData(value, next)) => ReadStream(DropRightStream(next, count, buffer.enqueue(value)))
-              }
-            } else {
-              val (value, tail) = buffer.dequeue
-              unit(Some(StreamData(value, DropRightStream(stream, count, tail))))
             }
 
           case ThroughStream(stream, f) =>

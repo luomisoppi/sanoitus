@@ -10,7 +10,7 @@ object ParallelExample2 {
     val program = for {
       res <- resource("resource") { value => println(s"Closing $value") }
       _ <- Fork(unit(()), res)
-      _ <- effect { _ => None }
+      _ <- effect[Any] { _ => None }
     } yield ()
 
     val es = BasicExecutionService()

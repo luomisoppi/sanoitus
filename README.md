@@ -30,7 +30,7 @@ val program =
 Programs can have side effects:
 
 ```scala
-val program = effect(_ => Some(println("Hello world!")))
+val program = effect[Unit] { _ => Some(println("Hello world!")) }
 val es = BasicExecutionService()
 
 // will print "Hello world!"
@@ -43,11 +43,12 @@ And most importantly, programs can contain operations from externally defined la
 val myLanguage: MyLanguage
 import myLanguage._
 
-val program = for {
-  _ <- WriteValue(1, "one")
-  one <- ReadValue(1)
-  two <- ReadValue(2)
-} yield (one, two)
+val program =
+  for {
+    _ <- WriteValue(1, "one")
+    one <- ReadValue(1)
+    two <- ReadValue(2)
+  } yield (one, two)
 ```
 
 A language is just a set of operations:
@@ -76,14 +77,14 @@ object MyInterpreter extends Interpreter with MyLanguage {
   override def apply[A](op: Operation[A]): Program[A] =
     op match {
       case WriteValue(key, value) => {
-        effect { _ =>
+        effect[Unit] { _ =>
           store.updateAndGet(_ + ((key, value)))
           Some(())
         }
       }
 
       case ReadValue(key) => {
-        effect { _ => Some(store.get().get(key)) }
+        effect[A] { _ => Some(store.get().get(key)) }
       }
     }
 
@@ -129,15 +130,13 @@ es.executeAsync(program, println)
 
 ## Side effects
 
-Like programs, executions are expressed as Scala values. ExecutionService implementations define how the executions are represented and how they are modified on each execution step.
-
-While details of the execution values are mostly of interest to the ExecutionService implementations, the values themselves can be accessed when defining side effects in the programs:
+Like programs, also their executions are expressed as Scala values. While contents of the execution values are relevant to the ExecutionService implementations only, the values themselves can be accessed when defining side effects in the programs:
 
 ```scala
-val program = effect { execution => Some(println("Hello world!")) }
+val program = effect[Unit] { suspended => Some(println("Hello world!")) }
 ```
 
-The value "execution" above represents the state of the execution at the moment it reaches the 'effect' operation. The return value defines whether the execution should continue. By returning Some("x"), the execution will continue assuming the effect returned value "x". By returning None, the execution will not continue; the ExecutionService will simply forget about it.
+The value "suspended" above represents the state of the execution at the moment it reaches the 'effect' operation. The return value defines whether the execution should continue. By returning Some("x"), the execution will continue assuming the effect returned value "x". By returning None, the execution will not continue; the ExecutionService will simply forget about it.
 
 But as the execution is (an immutable) value you can, as a side effect, store it into a location of your choosing and later continue the execution where it left off. When the execution is paused like this, it does not block a thread. It's just a value in the memory.
 
@@ -154,18 +153,18 @@ object SideEffectExample {
 
   def main(args: Array[String]): Unit = {
 
-    val promise = Promise[Execution[_]]()
-    promise.future.onComplete(_.foreach { execution =>
+    val promise = Promise[Suspended[Int]]()
+    promise.future.onComplete(_.foreach { suspended =>
       Thread.sleep(1000)
-      execution.proceed(8)
+      suspended.proceed(8)
     })
 
     val program =
       for {
         value1 <- unit(5)
-        value2 <- effect { execution =>
-          promise.success(execution)
-          None: Option[Int]
+        value2 <- effect[Int] { suspended =>
+          promise.success(suspended)
+          None
         }
       } yield value1 * value2
 
@@ -222,10 +221,15 @@ This repository contains 3 languages. The main focus above was the root language
 
 ### Root language
 
-The root language contains the following operations. They were described earlier in more detail, but here's a summary:
+The root language contains the following primitive operations
 
 * unit - returns a value
 * effect - performs a side effect
+* mapResources - modify the set of resources attached to the execution
+* peekResources - read the set of resources currently attached to the execution
+
+and the following operations derived from the primitive ones:
+
 * resource - creates a resource
 * close - closes a resource
 
@@ -245,7 +249,7 @@ import sanoitus.parallel.core.ParallelInterpreter._
 object ParallelExample1 {
 
   def main(args: Array[String]): Unit = {
-    val readThreadName = effect(_ => Some(Thread.currentThread.getName()))
+    val readThreadName = effect[String] { _ => Some(Thread.currentThread.getName()) }
 
     val program = for {
       reader1 <- Fork(readThreadName)
@@ -276,17 +280,15 @@ object ParallelExample2 {
   def main(args: Array[String]): Unit = {
 
     val program = for {
-      res <- resource("resource")(value => println(s"Closing $value"))
+      res <- resource("resource") { value => println(s"Closing $value") }
       _ <- Fork(unit(()), res)
-      _ <- effect(_ => None)
+      _ <- effect[Any] { _ => None }
     } yield ()
 
     val es = BasicExecutionService()
 
     // will print "Closing resource", even if the "main" program never ends
     es.execute(program)
-
-    es.shutdown()
   }
 }
 ```
@@ -316,13 +318,14 @@ object StreamExample {
   def main(args: Array[String]): Unit = {
 
     val es = BasicExecutionService()
+
     val stream = integersFrom(1).take(5)
 
     // will print "List(1, 2, 3, 4, 5)"
     println(es.executeUnsafe(ReadAll(stream)))
 
     val streamWithSideEffects =
-      stream.through(value => effect(_ => Some(println(s"value from stream: $value"))))
+      stream.through(value => effect[Unit] { _ => Some(println(s"value from stream: $value")) })
     // will print:
     // value from stream: 1
     // value from stream: 2

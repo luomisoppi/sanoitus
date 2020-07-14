@@ -17,7 +17,7 @@ def overrideFrom(overrideSourceSet) {
         .findAll({ it.exists() })
         .collect({ it.getAbsolutePath() })
 
-    def overrideFiles = overrideSourceSet.getAllSource().collect { 
+    def overrideFiles = overrideSourceSet.getAllSource().collect {
       def file = it.getAbsolutePath()
       def prefix = overrideDirectories.find { file.startsWith(it) }
       file.substring(prefix.length() + 1)
@@ -32,7 +32,6 @@ def overrideFrom(overrideSourceSet) {
     }
   }
 }
-  
 
 apply from: 'common.gradle'
 
@@ -44,7 +43,7 @@ configure(subprojects) {
     delete 'build-2.12'
   }
 
-  sourceSets { 
+  sourceSets {
     
     compat {
       scala {
@@ -52,13 +51,13 @@ configure(subprojects) {
       }
     }
 
-    main { 
-      scala { 
+    main {
+      scala {
         srcDirs compat.scala.srcDirs
         exclude overrideFrom(sourceSets.compat)
-      } 
-    } 
-  } 
+      }
+    }
+  }
 
   dependencies {
     api 'org.scala-lang:scala-library:2.12.10'

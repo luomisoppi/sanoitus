@@ -3,7 +3,7 @@ package sanoitus.util
 import sanoitus._
 
 case class LoggingExecution[A](
-  override val program: Program[A],
+  val program: Program[A],
   override val callback: ExecutionResult[A, Log] => Unit,
   override val resources: Set[Resource[_]],
   override val es: LoggingExecutionService,
@@ -13,13 +13,13 @@ case class LoggingExecution[A](
 ) extends Execution[A] {
 
   override type Meta = Log
-  override type Self[X] = LoggingExecution[X]
+  override type Self = LoggingExecution[A]
   override val meta = Log(entries)
-
-  override def continueWith(value: Either[Throwable, Any]): Unit = es.continue(this, value)
 
   override def mapResources(f: Set[Resource[_]] => Set[Resource[_]]) =
     LoggingExecution(program, callback, f(resources), es, entries, start, depth)
+
+  override def continueWith(value: Either[Throwable, Any]): Unit = es.continue(this, value)
 
   def setProgram(prog: Program[A]) =
     LoggingExecution(prog, callback, resources, es, entries, start, depth)
@@ -28,7 +28,7 @@ case class LoggingExecution[A](
     LoggingExecution(program, callback, resources, es, entry :: entries, start, depth)
 
   def addOp(op: Op[_]) = addEntry(CallEntry(op, Thread.currentThread().getName, System.nanoTime() - start, depth))
-  def addDirective() = addEntry(DirectiveEntry(Thread.currentThread().getName, System.nanoTime() - start, depth))
+
   def addReturn(value: Any) =
     if (value.isInstanceOf[Array[_]]) {
       addEntry(
@@ -42,6 +42,11 @@ case class LoggingExecution[A](
     } else {
       addEntry(ReturnEntry(value, Thread.currentThread().getName, System.nanoTime() - start, depth))
     }
+
+  def addEffect() = addEntry(EffectEntry(Thread.currentThread().getName, System.nanoTime() - start, depth))
+
+  def addMapResources(pre: Set[Resource[_]], post: Set[Resource[_]]) =
+    addEntry(MapResourcesEntry(pre, post, Thread.currentThread().getName, System.nanoTime() - start, depth))
 
   def addMap(value: A) =
     LoggingExecution(

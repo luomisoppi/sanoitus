@@ -1,5 +1,4 @@
 dependencies {
   api project(':stream-dsl')
-  
   testImplementation project(':stream-test')
 }

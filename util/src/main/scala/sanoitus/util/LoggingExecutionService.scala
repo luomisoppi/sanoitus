@@ -11,6 +11,7 @@ class LoggingExecutionService(
   override val anomalies: AnomalySink
 ) extends ExecutionService { self =>
 
+  override type Meta = Log
   override type Exec[A] = LoggingExecution[A]
 
   def executeAsync[A](program: Program[A], callback: Res[A] => Unit) =
@@ -40,12 +41,13 @@ class LoggingExecutionService(
     execution.program match {
       case p: Flatmap[_, _] => exec(execution.setProgram(bindRight(p)))
 
-      case RightBoundFlatmap(directive: Directive[_, A, Exec] @unchecked, g) => {
-        directive.f(execution.addDirective()) match {
-          case Some((e, prog)) => exec(e.setProgram(Flatmap(prog, g)))
-          case None            => None
-        }
+      case RightBoundFlatmap(MapResources(f), g) => {
+        val post = execution.mapResources(f)
+        exec(post.setProgram(g(())).addMapResources(execution.resources, post.resources))
       }
+
+      case RightBoundFlatmap(PeekResources(), g) =>
+        exec(execution.setProgram(RightBoundFlatmap(Return(execution.resources), g)))
 
       case RightBoundFlatmap(Return(value, false), g: Function1[Any, Program[A]] @unchecked) =>
         exec(
@@ -75,6 +77,13 @@ class LoggingExecutionService(
       case RightBoundFlatmap(DecDepth(res), g) =>
         exec(execution.setProgram(g(())).decDepth.addReturn(res))
 
+      case p @ RightBoundFlatmap(Effect(f), g) => {
+        f(Suspended(execution.setProgram(p).addEffect())) match {
+          case Some(value) => exec(execution.setProgram(RightBoundFlatmap(Return(value), g)).addEffect())
+          case None        => None
+        }
+      }
+
       case Interpret(op) => {
         val interpreted =
           for {
@@ -86,11 +95,19 @@ class LoggingExecutionService(
         exec(execution.setProgram(interpreted))
       }
 
-      case directive: Directive[A, A, Exec] @unchecked =>
-        directive.f(execution.addDirective()) match {
-          case Some((e, prog)) => exec(e.setProgram(prog))
-          case None            => None
+      case MapResources(f) => {
+        val post = execution.mapResources(f)
+        Some(((), post.addMapResources(execution.resources, post.resources)))
+      }
+
+      case PeekResources() => Some((execution.resources, execution))
+
+      case p @ Effect(f) => {
+        f(Suspended(execution.setProgram(p).addEffect())) match {
+          case Some(value) => Some((value, execution))
+          case None        => None
         }
+      }
 
       case Return(value, false) =>
         Some((value, execution.addOp(InternalInterpreter.Return(value)).addReturn(value)))

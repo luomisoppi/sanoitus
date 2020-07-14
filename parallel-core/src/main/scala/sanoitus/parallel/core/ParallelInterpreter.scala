@@ -13,26 +13,28 @@ object ParallelInterpreter extends Interpreter with ParallelLanguage {
     op match {
       case fork: Fork[A @unchecked] =>
         for {
-          promise <- directive[Promise[A]] { (execution: FreeExec) =>
-            val ok = fork.resources.foldLeft(true) { (acc, resource) => acc && execution.resources.contains(resource) }
-            if (!ok) throw IllegalFork
+          resources <- peekResources
+          promise <- effect[Promise[A]] { s =>
+            if (fork.resources.toSet.subsetOf(resources)) {
+              val p = Promise(None: Option[Either[Throwable, A]])
 
-            val p = Promise(None: Option[Either[Throwable, A]])
+              val newProg =
+                for {
+                  _ <- mapResources { _ ++ fork.resources.toSet }
+                  x <- fork.program
+                } yield x
 
-            val newProg =
-              for {
-                _ <- directive[Unit] { (e: FreeExec) => Some((e.mapResources(_ ++ fork.resources.toSet), unit(()))) }
-                x <- fork.program
-              } yield x
-
-            execution.es.executeAsync(newProg, (x: Result[A]) => p.setResult(x.value))
-            Some((execution.mapResources(_ -- fork.resources.toSet), unit(p)))
+              s.es.executeAsync(newProg, (x: s.es.Res[A]) => p.setResult(x.value))
+              Some(p)
+            } else {
+              throw IllegalFork
+            }
           }
         } yield promise
 
-      case Await(promise) => {
-        effect { execution =>
-          promise.addWaiter(execution).map {
+      case await: Await[A @unchecked] => {
+        effect[A] { suspended =>
+          await.promise.addWaiter(suspended).map {
             case Left(err)    => throw err
             case Right(value) => value
           }
@@ -44,7 +46,7 @@ object ParallelInterpreter extends Interpreter with ParallelLanguage {
       }
 
       case FulfillPromise(promise, value) =>
-        effect { _ =>
+        effect[Unit] { _ =>
           promise.setResult(value)
           Some(())
         }

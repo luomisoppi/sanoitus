@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit
 class BasicExecutionService(val threadPool: ThreadPoolExecutor, val anomalies: AnomalySink) extends ExecutionService {
   self =>
 
+  override type Meta = Unit
   override type Exec[A] = BasicExecution[A]
 
   def executeAsync[A](program: Program[A], callback: Res[A] => Unit) =
@@ -31,18 +32,29 @@ class BasicExecutionService(val threadPool: ThreadPoolExecutor, val anomalies: A
   @annotation.tailrec
   final override def exec[A](execution: Exec[A]): Option[(A, Exec[A])] =
     execP(execution.program) match {
-      case p @ RightBoundFlatmap(directive: Directive[_, A, Exec] @unchecked, g) => {
-        directive.f(execution.setProgram(p)) match {
-          case Some((e, prog)) => exec(e.setProgram(Flatmap(prog, g)))
-          case None            => None
+      case p @ RightBoundFlatmap(Effect(f), g) => {
+        f(Suspended(execution.setProgram(p))) match {
+          case Some(value) => exec(execution.setProgram(g(value)))
+          case None        => None
         }
       }
-      case directive: Directive[A, A, Exec] @unchecked =>
-        directive.f(execution.setProgram(directive)) match {
-          case Some((e, prog)) => exec(e.setProgram(prog))
-          case None            => None
-        }
+
+      case RightBoundFlatmap(MapResources(f), g) => exec(execution.mapResources(f).setProgram(g(())))
+
+      case RightBoundFlatmap(PeekResources(), g) => exec(execution.setProgram(g(execution.resources)))
+
       case Return(value, _) => Some((value, execution))
+
+      case PeekResources() => Some((execution.resources, execution))
+
+      case MapResources(f) => Some(((), execution.mapResources(f)))
+
+      case p @ Effect(f) => {
+        f(Suspended(execution.setProgram(p))) match {
+          case Some(value) => Some((value, execution))
+          case None        => None
+        }
+      }
     }
 
   override def shutdown(): Unit = threadPool.shutdown()

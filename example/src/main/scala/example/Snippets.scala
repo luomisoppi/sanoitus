@@ -33,7 +33,7 @@ object Snippet2 {
 
 object Snippet3 {
   def main(args: Array[String]): Unit = {
-    val program = effect { _ => Some(println("Hello world!")) }
+    val program = effect[Unit] { _ => Some(println("Hello world!")) }
     val es = BasicExecutionService()
 
     // will print "Hello world!"

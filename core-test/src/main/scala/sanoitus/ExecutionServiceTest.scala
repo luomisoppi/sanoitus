@@ -33,19 +33,21 @@ trait ExecutionServiceTest extends AnyFunSuite {
   }
 
   test("Successful effect program behaves as expected") {
-    val program = effect { _ =>
-      Some("a")
-    }
+    val program = effect[String] { _ => Some("a") }
     val result = es.executeUnsafe(program)
     assert(result == "a")
   }
 
-  test("Successful directive program behaves as expected") {
-    val program: Program[String] = directive { (exec: FreeExec) =>
-      Some((exec, unit("a")))
-    }
+  test("Successful mapResources program behaves as expected") {
+    val program = mapResources(identity)
+    val result = es.execute(program)
+    assert(result.value.isRight == true)
+  }
+
+  test("Successful peekResources program behaves as expected") {
+    val program = peekResources
     val result = es.executeUnsafe(program)
-    assert(result == "a")
+    assert(result == Set())
   }
 
   test("Successful composed program behaves as expected") {
@@ -53,9 +55,7 @@ trait ExecutionServiceTest extends AnyFunSuite {
       for {
         a <- ReturnValue(1)
         b <- unit("a")
-        c <- effect { _ =>
-          Some(Some("value"))
-        }
+        c <- effect[Option[String]] { _ => Some(Some("value")) }
       } yield (a, b, c)
 
     val result = es.executeUnsafe(program)
@@ -66,14 +66,14 @@ trait ExecutionServiceTest extends AnyFunSuite {
     val sem = new Semaphore(0)
     val program =
       for {
-        a <- effect { _ =>
-          sem.release();
-          None: Option[String]
+        a <- effect[String] { _ =>
+          sem.release()
+          None
         }
       } yield a
 
     var callbackExecuted = false
-    def callback: Result[String] => Unit = _ => { callbackExecuted = true }
+    def callback: es.Res[String] => Unit = _ => { callbackExecuted = true }
     es.executeAsync(program, callback)
     sem.tryAcquire(1, TimeUnit.SECONDS)
     assert(callbackExecuted == false)
@@ -94,9 +94,7 @@ trait ExecutionServiceTest extends AnyFunSuite {
     val err = new IllegalStateException("failure")
     val program =
       for {
-        _ <- effect { _ =>
-          throw err; Some(())
-        }
+        _ <- effect[Unit] { _ => throw err }
       } yield ()
 
     val result = es.execute(program)
@@ -143,7 +141,7 @@ trait ExecutionServiceTest extends AnyFunSuite {
     val program = (1 to 1000000).foldLeft(unit(List[Int]())) { (acc, a) =>
       for {
         list <- acc
-        x <- effect(_ => Some(a))
+        x <- effect[Int](_ => Some(a))
       } yield x :: list
     }
 
@@ -154,7 +152,7 @@ trait ExecutionServiceTest extends AnyFunSuite {
   test("Stack okay with big tail heavy program (effects)") {
     val program = (1 to 1000000).foldLeft(unit(List[Int]())) { (acc, a) =>
       for {
-        x <- effect(_ => Some(a))
+        x <- effect[Int](_ => Some(a))
         list <- acc
       } yield x :: list
     }

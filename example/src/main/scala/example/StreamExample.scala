@@ -17,7 +17,7 @@ object StreamExample {
     println(es.executeUnsafe(ReadAll(stream)))
 
     val streamWithSideEffects =
-      stream.through(value => effect { _ => Some(println(s"value from stream: $value")) })
+      stream.through(value => effect[Unit] { _ => Some(println(s"value from stream: $value")) })
     // will print:
     // value from stream: 1
     // value from stream: 2

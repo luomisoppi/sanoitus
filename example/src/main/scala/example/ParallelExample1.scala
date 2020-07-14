@@ -6,7 +6,7 @@ import sanoitus.parallel.core.ParallelInterpreter._
 object ParallelExample1 {
 
   def main(args: Array[String]): Unit = {
-    val readThreadName = effect { _ => Some(Thread.currentThread.getName()) }
+    val readThreadName = effect[String] { _ => Some(Thread.currentThread.getName()) }
 
     val program = for {
       reader1 <- Fork(readThreadName)

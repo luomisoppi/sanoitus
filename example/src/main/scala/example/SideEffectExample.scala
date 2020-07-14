@@ -10,18 +10,18 @@ object SideEffectExample {
 
   def main(args: Array[String]): Unit = {
 
-    val promise = Promise[Execution[_]]()
-    promise.future.onComplete(_.foreach { execution =>
+    val promise = Promise[Suspended[Int]]()
+    promise.future.onComplete(_.foreach { suspended =>
       Thread.sleep(1000)
-      execution.proceed(8)
+      suspended.proceed(8)
     })
 
     val program =
       for {
         value1 <- unit(5)
-        value2 <- effect { execution =>
-          promise.success(execution)
-          None: Option[Int]
+        value2 <- effect[Int] { suspended =>
+          promise.success(suspended)
+          None
         }
       } yield value1 * value2
 

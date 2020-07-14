@@ -61,7 +61,7 @@ trait StreamLanguage extends Language { self: Interpreter =>
     def takeWhileNotEmpty(implicit ev: A <:< Iterable[_]): Stream[A] =
       stream.takeUntil(ev(_).isEmpty).filter(!ev(_).isEmpty)
 
-    def effect[B](f: A => B): Stream[B] = stream.through(a => sanoitus.effect { _ => Some(f(a)) })
+    def effect[B](f: A => B): Stream[B] = stream.through(a => sanoitus.effect[B] { _ => Some(f(a)) })
   }
 
   implicit def ops[A](stream: Stream[A]): StreamOps[A]
