@@ -75,7 +75,7 @@ object Snippet5 {
     println(result2.value)
 
     // will print "ExecutionResult(Right(Hello world!))"
-    es.executeAsync(program, println)
+    es.executeAsync(program)(println)
 
     es.shutdown()
   }

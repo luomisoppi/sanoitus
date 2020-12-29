@@ -10,7 +10,7 @@ class BasicExecutionService(val threadPool: ThreadPoolExecutor, val anomalies: A
   override type Meta = Unit
   override type Exec[A] = BasicExecution[A]
 
-  def executeAsync[A](program: Program[A], callback: Res[A] => Unit) =
+  def executeAsync[A](program: Program[A])(callback: Res[A] => Unit) =
     threadPool.execute(runnableFor(BasicExecution(program, callback, Set(), self)))
 
   def continue[A](execution: BasicExecution[A], value: Either[Throwable, Any]): Unit =
@@ -55,6 +55,8 @@ class BasicExecutionService(val threadPool: ThreadPoolExecutor, val anomalies: A
           case None        => None
         }
       }
+
+      case err @ _ => throw new IllegalStateException(s"Program execution error: $err")
     }
 
   override def shutdown(): Unit = threadPool.shutdown()

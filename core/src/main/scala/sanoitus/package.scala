@@ -1,9 +1,24 @@
 package object sanoitus {
   type Op[+A] = Language#Operation[A]
 
+  def unit[A](a: A): Program[A] = Return(a)
+
   implicit def liftOperationToProgram[A](op: Op[A]): Program[A] = Interpret(op)
 
-  def unit[A](a: A): Program[A] = Return(a)
+  case object Common extends Interpreter {
+    sealed trait Op[+A] extends Operation[A]
+
+    case class Unit[A](value: A) extends Op[A]
+
+    def apply[A](op: Op[A]): Program[A] =
+      op match {
+        case Unit(value) => unit(value)
+      }
+
+    def close() = ()
+  }
+
+  def Unit[A](a: A) = Common.Unit(a)
 
   def effect[A](f: Suspended[A] => Option[A]): Program[A] = Effect(f)
 

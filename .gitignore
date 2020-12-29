@@ -11,3 +11,4 @@ bin
 .bloop
 .metals
 .dotty-ide-disabled
+.vscode

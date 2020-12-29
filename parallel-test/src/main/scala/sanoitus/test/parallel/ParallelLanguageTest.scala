@@ -186,7 +186,7 @@ trait ParallelLanguageTest extends AnyFunSuite {
         _ <- effect[Unit] { _ => None }
       } yield ()
 
-    es.executeAsync(main, ((_: Any) => ()))
+    es.executeAsync(main)(_ => ())
     resource.tryAcquire(1, TimeUnit.SECONDS)
     assert(resource.availablePermits() == 1)
   }

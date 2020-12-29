@@ -14,7 +14,7 @@ class LoggingExecutionService(
   override type Meta = Log
   override type Exec[A] = LoggingExecution[A]
 
-  def executeAsync[A](program: Program[A], callback: Res[A] => Unit) =
+  def executeAsync[A](program: Program[A])(callback: Res[A] => Unit) =
     threadPool.execute(
       runnableFor(
         LoggingExecution(program, callback, Set(), self)
@@ -31,8 +31,9 @@ class LoggingExecutionService(
   private case class DecDepth[A](res: A) extends UnitProgram[Unit]
 
   case object InternalInterpreter extends Interpreter {
-    case class Return[A](value: A) extends Operation[A]
-    def apply[A](op: Operation[A]): Program[A] = ???
+    sealed trait Op[+A] extends Operation[A]
+    case class Return[A](value: A) extends Op[A]
+    def apply[A](op: Op[A]): Program[A] = ???
     def close(): Unit = ???
   }
 
@@ -118,6 +119,8 @@ class LoggingExecutionService(
       case IncDepth(op) => exec(execution.addOp(op).incDepth)
 
       case DecDepth(res) => exec(execution.decDepth.addReturn(res))
+
+      case err @ _ => throw new IllegalStateException(s"Execution error: $err")
     }
 
   override def shutdown(): Unit = threadPool.shutdown()

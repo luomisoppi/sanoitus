@@ -73,8 +73,7 @@ trait ExecutionServiceTest extends AnyFunSuite {
       } yield a
 
     var callbackExecuted = false
-    def callback: es.Res[String] => Unit = _ => { callbackExecuted = true }
-    es.executeAsync(program, callback)
+    es.executeAsync(program)(_ => callbackExecuted = true)
     sem.tryAcquire(1, TimeUnit.SECONDS)
     assert(callbackExecuted == false)
   }

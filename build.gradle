@@ -11,6 +11,6 @@ apply from: 'common.gradle'
 
 configure(subprojects) {
   dependencies {
-    api 'org.scala-lang:scala-library:2.13.1'
+    api 'org.scala-lang:scala-library:2.13.4'
   }
 }

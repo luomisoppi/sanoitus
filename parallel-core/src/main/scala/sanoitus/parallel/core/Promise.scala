@@ -60,11 +60,10 @@ case class FlatmapPromise[A, B](w: WritablePromise[A], kl: DependentQueue[Promis
         _ <- effect[Unit] { _ => Some(suspended.proceed(b)) }
       } yield ()
 
-    def callback(result: suspended.es.Res[_]): Unit = result.value match {
+    suspended.es.executeAsyncPlain(prog) {
       case Left(err) => suspended.continueWith(Left(err))
       case _         => ()
     }
-    suspended.es.executeAsync(prog, callback)
     None
   }
 

@@ -1,9 +1,9 @@
 wrapper{
-  gradleVersion = "6.2"
+  gradleVersion = "6.7.1"
 }
 
 configure(allprojects) {
-  version = "0.1.0-SNAPSHOT"
+  version = "0.1.0"
 
   repositories {
     mavenCentral()
@@ -14,9 +14,9 @@ configure(subprojects) {
   apply plugin: 'java-library'
   apply plugin: 'scala'
   apply plugin: "com.github.maiflai.scalatest"
-  apply plugin: 'maven-publish'
 
   jar {
+    from(file(rootProject.file("LICENSE.txt")))
     archiveBaseName = "sanoitus-${project.name}_${gradle.scalaVersion}"
   }
 
@@ -48,6 +48,7 @@ configure(subprojects) {
 
   task sourceJar(type: Jar) {
     from sourceSets.main.scala
+    from(file(rootProject.file("LICENSE.txt")))
     archiveBaseName = tasks.jar.archiveBaseName
     classifier "sources"
   }
@@ -67,25 +68,72 @@ configure(subprojects) {
     archiveBaseName = tasks.jar.archiveBaseName
     classifier "javadoc"
   }
+}
+
+def publishedProjects = subprojects.findAll { !it.name.endsWith('-test') && it.name != 'test' }
+
+configure(publishedProjects) {
+  apply plugin: 'maven-publish'
+  apply plugin: 'signing'
 
   publishing { 
     publications {
       impl(MavenPublication) {
-        groupId 'org.sanoitus'
-        artifactId "sanoitus-${project.name}_${gradle.scalaVersion}"
         from components.java
-        version version
-        
         artifact tasks.sourceJar
         artifact tasks.scalaDocJar
+
+        groupId 'org.sanoitus'
+        artifactId "sanoitus-${project.name}_${gradle.scalaVersion}"
+        version version
+
+        pom {
+          name = "sanoitus-${project.name}_${gradle.scalaVersion}"
+          description = "sanoitus-${project.name}"
+          url = 'https://github.com/luomisoppi/sanoitus'
+
+          licenses {
+            license {
+              name = 'MIT License'
+              url = 'http://www.opensource.org/licenses/mit-license'
+              distribution = 'repo'
+            }
+          }
+
+          developers {
+            developer {
+              name = 'Antti Luomi'
+              url = 'https://github.com/luomisoppi'
+            }
+          }
+
+          scm {
+            url = 'https://github.com/luomisoppi/sanoitus'
+            connection = 'scm:git:git://github.com/luomisoppi/sanoitus.git'
+          }
+        }
       }
     }
 
     repositories {
       maven {
         url findProperty("sanoitus.repository.url") ?: "${rootProject.buildDir}/repo"
+        if (findProperty("sanoitus.repository.username") != null) {
+          credentials {
+              username findProperty("sanoitus.repository.username")
+              password findProperty("sanoitus.repository.password") ?: ''
+          }
+        }
       }
     }
+  }
+
+  signing {
+    sign publishing.publications.impl
+  }
+
+  tasks.withType(Sign) {
+    onlyIf { gradle.taskGraph.hasTask(":${project.name}:publish") }
   }
 
   publish.dependsOn test
@@ -95,4 +143,4 @@ task build
 build.dependsOn subprojects.test
 
 task publish
-publish.dependsOn subprojects.publish
+publish.dependsOn publishedProjects.publish

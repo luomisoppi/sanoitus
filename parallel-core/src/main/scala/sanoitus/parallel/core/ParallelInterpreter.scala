@@ -3,13 +3,13 @@ package sanoitus.parallel.core
 import sanoitus._
 import sanoitus.parallel._
 
-object ParallelInterpreter extends Interpreter with ParallelLanguage {
+object ParallelInterpreter extends ParallelLanguage with Interpreter {
 
   override type Promise[+A] = sanoitus.parallel.core.Promise[A]
   override type WritablePromise[A] = sanoitus.parallel.core.WritablePromise[A]
   override val promiseMonad = promiseMon
 
-  def apply[A](op: Operation[A]): Program[A] =
+  def apply[A](op: Op[A]): Program[A] =
     op match {
       case fork: Fork[A @unchecked] =>
         for {
@@ -24,7 +24,7 @@ object ParallelInterpreter extends Interpreter with ParallelLanguage {
                   x <- fork.program
                 } yield x
 
-              s.es.executeAsync(newProg, (x: s.es.Res[A]) => p.setResult(x.value))
+              s.es.executeAsyncPlain(newProg)(p.setResult(_))
               Some(p)
             } else {
               throw IllegalFork

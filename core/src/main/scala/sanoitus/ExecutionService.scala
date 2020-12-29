@@ -12,13 +12,16 @@ trait ExecutionService { self =>
 
   def shutdown(): Unit
 
-  def executeAsync[A](program: Program[A], callback: Res[A] => Unit): Unit
+  def executeAsync[A](program: Program[A])(callback: Res[A] => Unit): Unit
+
+  def executeAsyncPlain[A](program: Program[A])(callback: Either[Throwable, A] => Unit): Unit =
+    executeAsync(program)((r: Res[A]) => callback(r.value))
 
   def execute[A](program: Program[A]): Res[A] = {
     val sem = new Semaphore(0)
     var result: Res[A] = null
     def callback: Res[A] => Unit = res => { result = res; sem.release() }
-    executeAsync(program, callback)
+    executeAsync(program)(callback)
     sem.acquire()
     result
   }
@@ -31,7 +34,6 @@ trait ExecutionService { self =>
 
   def continue[A](execution: Exec[A], value: Either[Throwable, Any]): Unit
 
-  case class RightBoundFlatmap[A, +B](h: UnitProgram[A], f: A => Program[B]) extends Program[B]
   type FMP[A] = Flatmap[_, A]
 
   @annotation.tailrec
@@ -42,7 +44,7 @@ trait ExecutionService { self =>
       case fmp @ Flatmap(simple: UnitProgram[x], _) => RightBoundFlatmap(simple, fmp.f)
       case fmp @ Flatmap(n: RightBoundFlatmap[a, b], _) =>
         bindRight(Flatmap(n.h, (q: a) => Flatmap(n.f(q), fmp.f)))
-      case err @ _ => throw new IllegalStateException("does not really happen: " + err)
+      case err @ _ => throw new IllegalStateException("bindRight error: " + err)
     }
 
   @annotation.tailrec

@@ -3,5 +3,7 @@ package sanoitus.test
 import sanoitus._
 
 trait RecursiveLanguage extends Language { self: Interpreter =>
-  case class Sum(acc: Long, value: Int) extends Operation[Long]
+  sealed trait Op[+A] extends Operation[A]
+
+  case class Sum(acc: Long, value: Int) extends Op[Long]
 }

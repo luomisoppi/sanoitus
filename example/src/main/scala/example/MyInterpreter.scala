@@ -8,7 +8,7 @@ object MyInterpreter extends Interpreter with MyLanguage {
 
   val store = new AtomicReference(Map[Int, String]())
 
-  override def apply[A](op: Operation[A]): Program[A] =
+  override def apply[A](op: Op[A]): Program[A] =
     op match {
       case WriteValue(key, value) => {
         effect[Unit] { _ =>

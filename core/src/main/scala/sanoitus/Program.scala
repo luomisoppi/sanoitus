@@ -14,7 +14,9 @@ private[sanoitus] case class PeekResources() extends UnitProgram[Set[Resource[_]
 
 private[sanoitus] case class Flatmap[A, +B](h: Program[A], f: A => Program[B]) extends Program[B]
 
-trait Program[+A] {
+private[sanoitus] case class RightBoundFlatmap[A, +B](h: UnitProgram[A], f: A => Program[B]) extends Program[B]
+
+sealed trait Program[+A] {
   def flatMap[B](f: A => Program[B]): Program[B] = Flatmap(this, f)
   def map[B](f: A => B): Program[B] = Flatmap(this, (a: A) => Return(f(a), true))
 }

@@ -57,8 +57,10 @@ A language is just a set of operations:
 import sanoitus._
 
 trait MyLanguage extends Language { self: Interpreter =>
-  case class WriteValue(key: Int, value: String) extends Operation[Unit]
-  case class ReadValue(key: Int) extends Operation[Option[String]]
+  sealed trait Op[+A] extends Operation[A]
+
+  case class WriteValue(key: Int, value: String) extends Op[Unit]
+  case class ReadValue(key: Int) extends Op[Option[String]]
 }
 ```
 
@@ -74,7 +76,7 @@ object MyInterpreter extends Interpreter with MyLanguage {
 
   val store = new AtomicReference(Map[Int, String]())
 
-  override def apply[A](op: Operation[A]): Program[A] =
+  override def apply[A](op: Op[A]): Program[A] =
     op match {
       case WriteValue(key, value) => {
         effect[Unit] { _ =>
@@ -116,7 +118,7 @@ val result2: ExecutionResult[String, Unit] = es.execute(program)
 println(result2.value)
 
 // will print "ExecutionResult(Right(Hello world!))"
-es.executeAsync(program, println)
+es.executeAsync(program)(println)
 ```
 
 "executeUnsafe" returns the raw result and throws any exception that the execution causes.
@@ -339,14 +341,9 @@ object StreamExample {
 }
 ```
 
-## How to run it
+## How to use it
 
-Compile and publish the artifacts to local Maven repository:
-
-* Scala 2.13: ./gradlew publishToMavenLocal
-* Scala 2.12: ./gradlew -c settings-2.12.gradle publishToMavenLocal
-
-All the code in this document can be found under 'example' directory as a stand-alone project. It can be compiled after publishing the artifacts to local Maven repository by the following command (executed in 'example' directory):
+All the code in this document can be found under 'example' directory as a stand-alone project. It can be compiled with the following command (executed in 'example' directory):
 
 * Scala 2.13: ./gradlew build
 * Scala 2.12: ./gradlew -c settings-2.12.gradle build

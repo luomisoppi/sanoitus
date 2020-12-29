@@ -1,9 +1,13 @@
 package sanoitus.test.stream
 
+import java.nio.channels.AsynchronousFileChannel
+import java.nio.file.StandardOpenOption.READ
+
 import org.scalatest.funsuite.AnyFunSuite
 
 import sanoitus._
 import sanoitus.stream._
+import java.nio.file.Paths
 
 trait StreamLanguageTest extends AnyFunSuite {
 
@@ -31,7 +35,7 @@ trait StreamLanguageTest extends AnyFunSuite {
   }
 
   test("TakeWhileDefined works") {
-    val stream: Stream[Option[Int]] = integersFrom(1).take(10).map(Some(_)) ++ Stream(None)
+    val stream: Stream[Option[Int]] = integersFrom(1).take(10).map(Some(_)) ++ Stream(None).repeat
     val program = ReadAll(stream.takeWhileDefined)
 
     val result = es.executeUnsafe(program)
@@ -112,20 +116,16 @@ trait StreamLanguageTest extends AnyFunSuite {
     assert(result == Seq(500000500000L))
   }
 
-  test("Effect works") {
-    var x = 0
-    val stream = integersFrom(1)
-      .take(5)
-      .effect { a =>
-        x += a
-        a * 2
-      }
-      .take(3)
+  test("Stream from AsynchronousFileChannel works") {
+    val file = "../stream-test/src/main/scala/sanoitus/test/stream/StreamLanguageTest.scala"
+    val path = Paths.get("../stream-test/src/main/scala/sanoitus/test/stream/StreamLanguageTest.scala")
+    val chunkSize = 11
+    val fileContent = scala.io.Source.fromFile(file).mkString
+
+    val stream = Stream.fromFile(AsynchronousFileChannel.open(path, READ), chunkSize)
 
     val result = es.executeUnsafe(ReadAll(stream))
 
-    assert(x == 6)
-    assert(result == Seq(2, 4, 6))
+    assert(new String(result.foldLeft(new Array[Byte](0))(_ ++ _)) == fileContent)
   }
-
 }

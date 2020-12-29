@@ -6,25 +6,18 @@ import sanoitus.util._
 
 object StreamInterpreter extends Interpreter with StreamLanguage {
 
-  trait Stream[+A]
+  sealed trait Stream[+A]
 
   case class EmptyStream[+A]() extends Stream[A]
 
   case class UnitStream[+A](program: Program[A]) extends Stream[A]
 
-  trait ConcatStream[+A] extends Stream[A] {
-    val head: Stream[A]
-    def tail: Stream[A]
-
-    override def toString = s"ConcatStream($head, $tail)"
+  case class ConcatStreamInternal[+A](val head: Stream[A], _tail: () => Stream[A]) extends Stream[A] {
+    lazy val tail = _tail()
   }
-  object ConcatStream {
-    def apply[A](_head: Stream[A], _tail: => Stream[A]) = new ConcatStream[A] {
-      override val head = _head
-      override def tail = _tail
-    }
 
-    def unapply[A](c: ConcatStream[A]): Option[(Stream[A], Stream[A])] = Some((c.head, c.tail))
+  object ConcatStream {
+    def apply[A](head: Stream[A], tail: => Stream[A]) = new ConcatStreamInternal[A](head, () => tail)
   }
 
   case class FoldStream[A, ACC](stream: Stream[A], zero: ACC, f: (ACC, A) => ACC) extends Stream[ACC]
@@ -46,7 +39,7 @@ object StreamInterpreter extends Interpreter with StreamLanguage {
   case class ZipStream[+A, +B](a: Stream[A], b: Stream[B]) extends Stream[(A, B)]
 
   override def fromProgram[A](program: Program[A]) = UnitStream(program)
-  override def fromOp[A](op: Op[A]) = UnitStream(op)
+  override def fromOp[A](op: Language#Operation[A]) = UnitStream(op)
   override def empty[A] = EmptyStream()
 
   implicit override val streamMonad: Monad[Stream] = new Monad[Stream] {
@@ -75,7 +68,7 @@ object StreamInterpreter extends Interpreter with StreamLanguage {
     def through[B](f: A => Program[B]): Stream[B] = ThroughStream(stream, f)
   }
 
-  def apply[A](op: Operation[A]): Program[A] =
+  def apply[A](op: Op[A]): Program[A] =
     op match {
       case rs: ReadStream[x] => {
         rs.stream match {
@@ -83,11 +76,11 @@ object StreamInterpreter extends Interpreter with StreamLanguage {
 
           case UnitStream(prg) => prg.map(value => Some(StreamData(value, EmptyStream())))
 
-          case ConcatStream(head, tail) =>
+          case ConcatStreamInternal(head, tail) =>
             ReadStream(head).flatMap {
-              case None                                   => ReadStream(tail)
-              case Some(StreamData(value, EmptyStream())) => unit(Some(StreamData(value, tail)))
-              case Some(StreamData(value, next))          => unit(Some(StreamData(value, ConcatStream(next, tail))))
+              case None                                   => ReadStream(tail())
+              case Some(StreamData(value, EmptyStream())) => unit(Some(StreamData(value, tail())))
+              case Some(StreamData(value, next))          => unit(Some(StreamData(value, ConcatStream(next, tail()))))
             }
 
           case FilterStream(stream, f) =>
@@ -106,7 +99,7 @@ object StreamInterpreter extends Interpreter with StreamLanguage {
 
           case FoldStream(stream, zero, f) =>
             ReadStream(stream).flatMap {
-              case None                          => unit(Some(StreamData(zero, EmptyStream[x])))
+              case None                          => unit(Some(StreamData(zero, EmptyStream[x]())))
               case Some(StreamData(value, next)) => ReadStream(FoldStream(next, f(zero, value), f))
             }
 

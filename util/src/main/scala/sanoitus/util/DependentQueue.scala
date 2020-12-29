@@ -1,6 +1,6 @@
 package sanoitus.util
 
-trait DependentQueue[F[_, _], A, B] {
+sealed trait DependentQueue[F[_, _], A, B] {
   def enqueue[C](element: F[B, C]): DependentQueue[F, A, C]
   def dequeue: DependentDeque[F, A, B]
 }
