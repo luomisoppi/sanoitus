@@ -5,6 +5,7 @@ import java.io.PrintWriter
 import java.util.concurrent.atomic.AtomicReference
 
 package object util {
+
   def throwableToString(t: Throwable): String =
     if (t != null) {
       val sw = new StringWriter();

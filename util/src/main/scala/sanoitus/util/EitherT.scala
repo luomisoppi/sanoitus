@@ -1,4 +1,5 @@
-package sanoitus.util
+package sanoitus
+package util
 
 class EitherT[M[_], L, R](val value: M[Either[L, R]])(implicit val mon: Monad[M]) {
 
@@ -21,4 +22,25 @@ class EitherT[M[_], L, R](val value: M[Either[L, R]])(implicit val mon: Monad[M]
     })
 
   def merge[A](implicit evl: L <:< A, evr: R <:< A): M[A] = mon.map(value)(_.map(evr(_)).left.map(evl(_)).merge)
+}
+
+object EitherT extends MonadTransformer {
+
+  implicit def liftOpToEitherT[L, R](op: Language#Operation[Either[L, R]]): EitherT[Program, L, R] = new EitherT(op)
+
+  implicit def liftProgramToEitherT[L, R](prog: Program[Either[L, R]]): EitherT[Program, L, R] = new EitherT(prog)
+
+  implicit def liftNonEitherProgramToEitherT[A: |¬|[Either[_, _]]#λ, L](value: Program[A]): EitherT[Program, L, A] =
+    new EitherT(value.map(Right(_): Either[L, A]))
+
+  implicit class ProgramEitherT[L, R](value: Program[Either[L, R]]) {
+    def eitherT: EitherT[Program, L, R] = new EitherT(value)
+  }
+
+  implicit class OpEitherT[L, R](value: Language#Operation[Either[L, R]]) {
+    def eitherT: EitherT[Program, L, R] = new EitherT(value)
+  }
+
+  implicit def toProgram[L, R](eitherT: EitherT[Program, L, R]): Program[Either[L, R]] =
+    eitherT.value
 }

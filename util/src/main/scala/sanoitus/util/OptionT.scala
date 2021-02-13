@@ -16,23 +16,17 @@ class OptionT[M[_], A](val value: M[Option[A]])(implicit val mon: Monad[M]) {
     })
 }
 
-object OptionT {
-
-  // Thanks, Miles! (https://gist.github.com/milessabin/c9f8befa932d98dcc7a4)
-  trait <:!<[A, B]
-
-  implicit def nsub[A, B]: A <:!< B = null
-  implicit def nsubAmbig1[A, B >: A]: A <:!< B = null
-  implicit def nsubAmbig2[A, B >: A]: A <:!< B = null
-
-  type |¬|[T] = {
-    type λ[U] = U <:!< T
-  }
+object OptionT extends MonadTransformer {
 
   implicit def liftOpToOptionT[A](op: Language#Operation[Option[A]]): OptionT[Program, A] = new OptionT(op)
 
-  implicit class ProgramNotOptionT[A: |¬|[Option[_]]#λ](value: Program[A]) {
-    def optT: OptionT[Program, A] = new OptionT(value.map(Some(_): Option[A]))
+  implicit def liftProgramToOptionT[A](prog: Program[Option[A]]): OptionT[Program, A] = new OptionT(prog)
+
+  implicit def liftNonOptionProgramToOptionT[A: |¬|[Option[_]]#λ, L](value: Program[A]): OptionT[Program, A] =
+    new OptionT(value.map(Some(_): Option[A]))
+
+  implicit class OpOptionT[A](value: Language#Operation[Option[A]]) {
+    def optT: OptionT[Program, A] = new OptionT(value)
   }
 
   implicit class ProgramOptionT[A](value: Program[Option[A]]) {
@@ -43,8 +37,8 @@ object OptionT {
     def optT: OptionT[Program, A] = new OptionT(value.map(Some(_): Option[A]))
   }
 
-  implicit class OpOptionT[A](value: Language#Operation[Option[A]]) {
-    def optT: OptionT[Program, A] = new OptionT(value)
+  implicit class ProgramNotOptionT[A: |¬|[Option[_]]#λ](value: Program[A]) {
+    def optT: OptionT[Program, A] = new OptionT(value.map(Some(_): Option[A]))
   }
 
   implicit def toProgram[A](optionT: OptionT[Program, A]): Program[Option[A]] =
