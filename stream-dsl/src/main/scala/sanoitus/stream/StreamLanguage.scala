@@ -60,9 +60,7 @@ trait StreamLanguage extends Language { self: Interpreter =>
         val buf = ByteBuffer.allocate(chunkSize)
         channel.read(buf, buf, asyncCompletion(sus))
         None
-      }).repeat
-        .takeUntil(_.length == 0)
-        .filter(_.length > 0)
+      }).repeat.takeWhileNotZeroLength
 
     private def longsFrom(i: Long, chunkSize: Int): Stream[Long] = Stream(i) ++ longsFrom(i + chunkSize, chunkSize)
 
@@ -76,8 +74,7 @@ trait StreamLanguage extends Language { self: Interpreter =>
           }
         )
         .repeat
-        .takeUntil(_.length == 0)
-        .filter(_.length > 0)
+        .takeWhileNotZeroLength
   }
 
   def fromProgram[A](program: Program[A]): Stream[A]
@@ -116,6 +113,9 @@ trait StreamLanguage extends Language { self: Interpreter =>
 
     def takeWhileNotEmpty(implicit ev: A <:< Iterable[_]): Stream[A] =
       stream.takeUntil(ev(_).isEmpty).filter(!ev(_).isEmpty)
+
+    def takeWhileNotZeroLength(implicit ev: A <:< Array[_]): Stream[A] =
+      stream.takeUntil(_.length == 0).filter(_.length != 0)
 
     def effect[B](f: A => Program[_]): Stream[A] = stream.through(a => f(a).map(_ => a))
   }
