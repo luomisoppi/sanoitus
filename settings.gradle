@@ -10,4 +10,4 @@ include 'core',
 'stream-test'
 
 gradle.ext.scalaVersion='2.13'
-gradle.ext.scalaMinorVersion='1'
+gradle.ext.scalaMinorVersion='4'

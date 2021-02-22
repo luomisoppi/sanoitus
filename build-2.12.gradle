@@ -44,7 +44,7 @@ configure(subprojects) {
   }
 
   sourceSets {
-    
+
     compat {
       scala {
         srcDir 'src/main/scala-2.12'
@@ -57,9 +57,5 @@ configure(subprojects) {
         exclude overrideFrom(sourceSets.compat)
       }
     }
-  }
-
-  dependencies {
-    api 'org.scala-lang:scala-library:2.12.12'
   }
 }

@@ -3,7 +3,7 @@ wrapper{
 }
 
 configure(allprojects) {
-  version = "0.1.1-SNAPSHOT"
+  version = "0.1.1"
 
   repositories {
     mavenCentral()
@@ -14,6 +14,10 @@ configure(subprojects) {
   apply plugin: 'java-library'
   apply plugin: 'scala'
   apply plugin: "com.github.maiflai.scalatest"
+
+  dependencies {
+    api "org.scala-lang:scala-library:${gradle.scalaVersion}.${gradle.scalaMinorVersion}"
+  }
 
   jar {
     from(file(rootProject.file("LICENSE.txt")))
