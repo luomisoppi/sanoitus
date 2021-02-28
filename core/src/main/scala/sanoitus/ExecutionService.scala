@@ -1,6 +1,7 @@
 package sanoitus
 
 import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicInteger
 
 trait ExecutionService { self =>
 
@@ -77,23 +78,34 @@ trait ExecutionService { self =>
       case _         => ()
     }
 
-    execution.resources.foreach { resource =>
-      try {
+    val resourceCount = new AtomicInteger(execution.resources.size)
+
+    if (resourceCount.get() > 0) {
+      execution.resources.foreach { resource =>
         val program =
           for {
             _ <- mapResources(_ + resource)
             _ <- close(resource)
           } yield ()
 
-        executeUnsafe(program)
-      } catch {
-        case t: Throwable => anomalies.error(execution, new AutoCloseFailed(t))
+        executeAsync(program) { res =>
+          res.value match {
+            case Left(t) => anomalies.error(execution, new AutoCloseFailed(t))
+            case _       => ()
+          }
+          if (resourceCount.decrementAndGet() == 0) {
+            execution.callback(new ExecutionResult[A, execution.Meta] {
+              override val value = result
+              override val meta = execution.meta
+            })
+          }
+        }
       }
+    } else {
+      execution.callback(new ExecutionResult[A, execution.Meta] {
+        override val value = result
+        override val meta = execution.meta
+      })
     }
-
-    execution.callback(new ExecutionResult[A, execution.Meta] {
-      override val value = result
-      override val meta = execution.meta
-    })
   }
 }
