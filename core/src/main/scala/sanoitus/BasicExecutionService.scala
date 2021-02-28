@@ -29,35 +29,53 @@ class BasicExecutionService(val threadPool: ThreadPoolExecutor, val anomalies: A
       case _                                      => program
     }
 
-  @annotation.tailrec
-  final override def exec[A](execution: Exec[A]): Option[(A, Exec[A])] =
-    execP(execution.program) match {
-      case p @ RightBoundFlatmap(Effect(f), g) => {
-        f(Suspended(execution.setProgram(p))) match {
-          case Some(value) => exec(execution.setProgram(g(value)))
-          case None        => None
+  override def exec[A](initial: Exec[A]): Option[(Either[Throwable, A], Exec[A])] = {
+    var execution = initial
+    var result: Option[A] = null
+    var error: Option[Throwable] = None
+    try {
+      while (result == null) {
+        execP(execution.program) match {
+          case p @ RightBoundFlatmap(Effect(f), g) => {
+            f(Suspended(execution.setProgram(p))) match {
+              case Some(value) => execution = execution.setProgram(g(value))
+              case None        => result = None
+            }
+          }
+
+          case RightBoundFlatmap(MapResources(f), g) => execution = execution.mapResources(f).setProgram(g(()))
+
+          case RightBoundFlatmap(PeekResources(), g) => execution = execution.setProgram(g(execution.resources))
+
+          case Return(value, _) => result = Some(value)
+
+          case PeekResources() => result = Some(execution.resources)
+
+          case MapResources(f) => {
+            execution = execution.mapResources(f)
+            result = Some(())
+          }
+
+          case p @ Effect(f) => {
+            f(Suspended(execution.setProgram(p))) match {
+              case Some(value) => result = Some(value)
+              case None        => result = None
+            }
+          }
+
+          case err @ _ => throw new IllegalStateException(s"Program execution error: $err")
         }
       }
-
-      case RightBoundFlatmap(MapResources(f), g) => exec(execution.mapResources(f).setProgram(g(())))
-
-      case RightBoundFlatmap(PeekResources(), g) => exec(execution.setProgram(g(execution.resources)))
-
-      case Return(value, _) => Some((value, execution))
-
-      case PeekResources() => Some((execution.resources, execution))
-
-      case MapResources(f) => Some(((), execution.mapResources(f)))
-
-      case p @ Effect(f) => {
-        f(Suspended(execution.setProgram(p))) match {
-          case Some(value) => Some((value, execution))
-          case None        => None
-        }
-      }
-
-      case err @ _ => throw new IllegalStateException(s"Program execution error: $err")
+    } catch {
+      case t: Throwable => error = Some(t)
     }
+
+    (result, error) match {
+      case (_, Some(err)) => Some((Left(err), execution))
+      case (Some(res), _) => Some((Right(res), execution))
+      case (None, _)      => None
+    }
+  }
 
   override def shutdown(): Unit = threadPool.shutdown()
 }

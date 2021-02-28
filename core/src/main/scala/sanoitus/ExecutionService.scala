@@ -58,17 +58,14 @@ trait ExecutionService { self =>
   def runnableFor[A](execution: Exec[A]): Runnable =
     new Runnable() {
       override def run(): Unit =
-        try {
-          exec(execution) match {
-            case None                      => ()
-            case Some((result, execution)) => finalizeExecution(execution, Right(result))
-          }
-        } catch {
-          case t: Throwable => finalizeExecution(execution, Left(t))
+        exec(execution) match {
+          case None                             => ()
+          case Some((Right(result), execution)) => finalizeExecution(execution, Right(result))
+          case Some((Left(err), execution))     => finalizeExecution(execution, Left(err))
         }
     }
 
-  def exec[A](execution: Exec[A]): Option[(A, Exec[A])]
+  def exec[A](execution: Exec[A]): Option[(Either[Throwable, A], Exec[A])]
 
   protected def finalizeExecution[A](
     execution: Exec[A],

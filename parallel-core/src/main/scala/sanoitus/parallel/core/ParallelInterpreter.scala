@@ -30,6 +30,7 @@ object ParallelInterpreter extends ParallelLanguage with Interpreter {
               throw IllegalFork
             }
           }
+          _ <- mapResources(_ -- fork.resources.toSet)
         } yield promise
 
       case await: Await[A @unchecked] => {

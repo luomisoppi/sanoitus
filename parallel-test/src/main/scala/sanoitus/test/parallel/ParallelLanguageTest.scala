@@ -170,7 +170,7 @@ trait ParallelLanguageTest extends AnyFunSuite {
     assert(result == CountTo * (CountTo + 1) / 2)
   }
 
-  test("Resource transfer behaves as expected") {
+  test("Transferred resources are closed when execution ends") {
     val resource = new Semaphore(0)
     def closer(s: Semaphore) = s.release(2)
 
@@ -189,6 +189,21 @@ trait ParallelLanguageTest extends AnyFunSuite {
     es.executeAsync(main)(_ => ())
     resource.tryAcquire(1, TimeUnit.SECONDS)
     assert(resource.availablePermits() == 1)
+  }
+
+  test("Transferred resources are closed when execution fails") {
+    val semaphore = new Semaphore(0)
+
+    val main =
+      for {
+        res <- resource(()) { _ => semaphore.release(2) }
+        _ <- Fork(sanoitus.fail(new Exception()), res)
+        _ <- effect[Unit](_ => None)
+      } yield ()
+
+    es.executeAsync(main)(_ => ())
+    semaphore.tryAcquire(1, TimeUnit.SECONDS)
+    assert(semaphore.availablePermits() == 1)
   }
 
   test("Illegal fork causes program to be terminated and anomaly sink to be notified") {
