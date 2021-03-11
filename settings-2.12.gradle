@@ -11,4 +11,4 @@ include 'core',
 
 rootProject.buildFileName = 'build-2.12.gradle'
 gradle.ext.scalaVersion='2.12'
-gradle.ext.scalaMinorVersion='10'
+gradle.ext.scalaMinorVersion='13'

@@ -9,6 +9,6 @@ repositories {
 }
 
 dependencies {
-  implementation 'org.sanoitus:sanoitus-parallel-core_2.12:0.1.0',
-                 'org.sanoitus:sanoitus-stream-core_2.12:0.1.0'
+  implementation 'org.sanoitus:sanoitus-parallel-core_2.12:0.1.2',
+                 'org.sanoitus:sanoitus-stream-core_2.12:0.1.2'
 }
