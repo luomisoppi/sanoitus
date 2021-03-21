@@ -158,7 +158,7 @@ object LoggingExecutionService {
       TimeUnit.MILLISECONDS,
       new LinkedBlockingQueue[java.lang.Runnable](queueSize),
       new ThreadPoolExecutor.CallerRunsPolicy()
-    );
+    )
 
     new LoggingExecutionService(tp, anomalies)
   }

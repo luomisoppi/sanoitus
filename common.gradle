@@ -3,7 +3,7 @@ wrapper{
 }
 
 configure(allprojects) {
-  version = "0.1.2"
+  version = "0.1.3-SNAPSHOT"
 
   repositories {
     mavenCentral()
@@ -74,7 +74,7 @@ configure(subprojects) {
   }
 }
 
-def publishedProjects = subprojects.findAll { !it.name.endsWith('-test') && it.name != 'test' }
+def publishedProjects = subprojects.findAll { !it.name.endsWith('-test') || it.name == 'core-test' }
 
 configure(publishedProjects) {
   apply plugin: 'maven-publish'

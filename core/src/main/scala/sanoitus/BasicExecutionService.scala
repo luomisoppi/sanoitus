@@ -93,7 +93,7 @@ object BasicExecutionService {
       TimeUnit.MILLISECONDS,
       new LinkedBlockingQueue[java.lang.Runnable](queueSize),
       new ThreadPoolExecutor.CallerRunsPolicy()
-    );
+    )
 
     new BasicExecutionService(tp, anomalies)
   }

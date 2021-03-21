@@ -30,7 +30,7 @@ trait ExecutionService { self =>
   def executeUnsafe[A](program: Program[A]): A =
     execute(program).value match {
       case Right(res) => res
-      case Left(t)    => throw t;
+      case Left(t)    => throw t
     }
 
   def continue[A](execution: Exec[A], value: Either[Throwable, Any]): Unit

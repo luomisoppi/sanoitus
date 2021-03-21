@@ -8,9 +8,9 @@ package object util {
 
   def throwableToString(t: Throwable): String =
     if (t != null) {
-      val sw = new StringWriter();
-      val pw = new PrintWriter(sw);
-      t.printStackTrace(pw);
+      val sw = new StringWriter()
+      val pw = new PrintWriter(sw)
+      t.printStackTrace(pw)
       sw.toString
     } else {
       "no exception"
